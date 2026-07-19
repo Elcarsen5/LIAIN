@@ -66,7 +66,7 @@ pip install liain
 <summary>아직 PyPI 등록 전이라면 (소스 설치)</summary>
 
 ```bash
-git clone https://github.com/<your>/liain.git
+git clone https://github.com/Elcarsen5/LIAIAN.git liain
 pip install -e ./liain
 ```
 </details>
