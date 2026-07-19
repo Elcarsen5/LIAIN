@@ -22,8 +22,8 @@ local = ["sentence-transformers>=2.2"]
 
 [project.urls]
 Homepage = "https://lian-lain.com/liain"
-Repository = "https://github.com/Elcarsen5/LIAIAN"
-Documentation = "https://github.com/Elcarsen5/LIAIAN/blob/main/docs/INSTALL.md"
+Repository = "https://github.com/Elcarsen5/LIAIN"
+Documentation = "https://github.com/Elcarsen5/LIAIN/blob/main/docs/INSTALL.md"
 
 [project.scripts]
 liain = "liain.cli:main"
