@@ -1,0 +1,24 @@
+# 개인 config — .example 템플릿만 커밋
+config/*.yaml
+!config/*.yaml.example
+examples/quickstart/*.yaml
+!examples/quickstart/*.yaml.example
+
+# 시크릿
+.env
+*.env
+
+# 런타임 상태 (기억 데이터 등)
+/brain/          # 런타임 기억 데이터 (리포 루트 기준 — liain/brain 소스는 추적)
+/diary/          # 런타임 일기
+*.db
+*.db-*
+
+# 파이썬
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+venv/

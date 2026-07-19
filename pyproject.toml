@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "liain"
+version = "0.1.0"
+description = "Liain — a config-driven body for AI personas. Bring your own soul."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Lain" }]
+keywords = ["ai", "persona", "agent", "memory", "messaging", "claude", "ollama"]
+dependencies = [
+    "pyyaml>=6.0",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+# 로컬 임베딩/검색을 쓸 때
+local = ["sentence-transformers>=2.2"]
+
+[project.urls]
+Homepage = "https://lian-lain.com/liain"
+
+[project.scripts]
+liain = "liain.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["liain*"]

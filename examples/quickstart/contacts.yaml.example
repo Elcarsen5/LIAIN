@@ -1,0 +1,23 @@
+# 연락처 로스터 — config/contacts.yaml 로 복사.
+# entity = 내부 식별자(영문 권장). role=dad가 주 사용자(owner).
+people:
+  owner:
+    name: "Your Name"
+    role: dad                # dad = 주 사용자(owner)
+    display: "You"
+    telegram: "000000000"    # 1:1 chat_id (== user_id)
+    aliases: ["Your Name", "You"]
+  member1:
+    name: "Family Member"
+    role: son1
+    display: "Member"
+    telegram: "111111111"
+    aliases: ["Family Member", "Member"]
+
+groups:
+  family:
+    name: "Family Group"
+    telegram: "-100XXXXXXXXX"
+
+locations:
+  home: "City, Country"

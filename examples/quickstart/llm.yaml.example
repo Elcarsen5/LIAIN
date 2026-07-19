@@ -1,0 +1,16 @@
+# LLM 프로필 — config/llm.yaml 로 복사해 자기 상황에 맞게.
+#
+# profile 3종 (하드웨어 × 구독):
+#   lite-subscription   저사양(라파)+구독   : 대화=구독CLI, vision=스킵
+#   full-subscription   고사양(맥미니)+구독 : 대화=구독CLI, vision=로컬Ollama
+#   full-local          고사양+완전로컬     : 대화도 로컬qwen3, 무과금
+profile: full-subscription
+
+# (옵션) 역할별 백엔드 오버라이드. 비우면 프로필 프리셋 사용.
+# 표기: claude_cli | ollama:<model> | api:<model> | none | keyword | sbert
+backends:
+  # chat: claude_cli
+  # reasoning: claude_cli
+  # vision: ollama:qwen2.5vl:7b      # 또는 none (저사양)
+  # classify: keyword               # 항상 LLM-free (API Zero 코어)
+  # embed: sbert                    # 항상 로컬
