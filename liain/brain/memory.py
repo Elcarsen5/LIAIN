@@ -270,7 +270,7 @@ def apply_action(decision: dict, new_fact: dict) -> Optional[dict]:
         _bump_reflection(int(new_fact.get("importance", 5)))
         # P2.3 보강 — CONFLICT는 audit_log에 기록 (의도치 않은 invalidate rollback 용이)
         try:
-            from tombstones import _ensure_dir, AUDIT_LOG_FILE
+            from .tombstones import _ensure_dir, AUDIT_LOG_FILE
             import json as _json
             _ensure_dir()
             audit_record = {
@@ -354,48 +354,24 @@ _FACT_EXTRACT_SYSTEM = _fill_fact_extract_entities()
 
 
 def _try_llm_extract(text: str, speaker: Optional[str], entities_hint: Optional[Sequence[str]]) -> Optional[list[dict]]:
-    """Local Llama(Ollama qwen3:14b) 우선 + Claude CLI fallback로 fact 추출.
+    """LLM으로 fact 추출. llm 추상화가 프로필에 따라 Ollama/구독 CLI로 라우팅.
 
-    qwen3:14b로 통일 — 도구 호출과 같은 모델 공유로 RAM/관리 단순화.
-    fact 추출은 단순 작업이지만 8b도 충분히 빠름 (~2-3초). 1.7b는 정확도 부족으로 폐기.
+    'reasoning' role — full-local 프로필이면 Ollama, 구독 프로필이면 Claude CLI.
+    백엔드 선택은 llm.yaml이 결정하므로 여기서 특정 백엔드를 직접 부르지 않는다.
     """
     hint = ""
     if speaker:
         hint += f"speaker: {speaker}\n"
     if entities_hint:
         hint += f"이미 알려진 entities: {list(entities_hint)}\n"
-    user_prompt = f"/no_think {hint}메시지: {text}\n\nfact JSON 배열만 (예: [{{\"text\":\"...\",\"entities\":[\"...\"],\"importance\":5}}]):"
-
-    response = None
+    user_prompt = (f"{hint}메시지: {text}\n\n"
+                   'fact JSON 배열만 (예: [{"text":"...","entities":["..."],"importance":5}]):')
     try:
-        from local_llm import call_local, is_ready
-        if is_ready("qwen3:14b"):
-            # 타임아웃 8s: qwen3:14b가 이 하드웨어에서 ~10s+빈 응답으로 불안정 →
-            # 빠르게 Claude(구독, 신뢰)로 폴백. 로컬이 빨라지면 다시 올린다.
-            response = call_local(
-                system="/no_think " + _FACT_EXTRACT_SYSTEM,
-                prompt=user_prompt,
-                model="qwen3:14b",
-                timeout=8,
-                temperature=0.2,
-                caller="memory_manager._try_llm_extract",
-            )
+        from liain import llm as _llm
+        response = _llm.complete("reasoning", _FACT_EXTRACT_SYSTEM, user_prompt, timeout=30)
     except Exception as e:
-        print(f"[memory_manager] local LLM 실패: {e}", flush=True)
-
-    # local 실패 시 Claude CLI fallback
-    if not response:
-        try:
-            from liain import llm as _llm
-            # /no_think 프리픽스는 qwen3 전용 — Claude는 슬래시 명령으로 오인("Unknown command").
-            # Claude 폴백엔 제거한 깨끗한 프롬프트 사용.
-            claude_prompt = user_prompt.replace("/no_think ", "", 1)
-            response = _llm.complete("reasoning", "", claude_prompt, max_turns=1, timeout=30,
-                system=_FACT_EXTRACT_SYSTEM,
-            )
-        except Exception as e:
-            print(f"[memory_manager] Claude CLI fallback 실패: {e}", flush=True)
-            return None
+        print(f"[memory] fact 추출 LLM 실패: {e}", flush=True)
+        return None
 
     if not response:
         return None

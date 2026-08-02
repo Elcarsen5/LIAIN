@@ -72,7 +72,8 @@ def cmd_info():
     if b:
         try:
             from liain.brain.paths import BRAIN_DIR
-            n = len(b.get_all_memories() or [])
+            from liain.brain import records
+            n = len(records.all_records())   # 실제 기억(record) 수 — 5계층 dict 키가 아님
             print(f"기억: {n}건 ({BRAIN_DIR})")
         except Exception:
             print("기억: (조회 실패)")

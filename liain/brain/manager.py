@@ -441,7 +441,7 @@ class Brain:
         # (Park 2023 Generative Agents: high-level reflection이 raw보다 더 인지적)
         try:
             import os as _os, json as _json
-            _rec_file = _os.path.join(_os.path.dirname(__file__), "brain", "records.json")
+            _rec_file = _os.path.join(BRAIN_DIR, "records.json")
             if _os.path.exists(_rec_file):
                 with open(_rec_file) as _f:
                     _data = _json.load(_f)

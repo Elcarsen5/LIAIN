@@ -40,8 +40,10 @@ import threading
 from datetime import datetime
 from typing import Optional, Iterable
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-RECORDS_FILE = os.path.join(BASE_DIR, "brain", "records.json")
+# 기억은 페르소나 폴더의 brain/에 산다 (LIAIN_DATA_DIR 또는 cwd 기준). 패키지
+# 설치 위치가 아니라 — "폴더 하나 = 인격 하나"의 핵심. paths.BRAIN_DIR 참조.
+from .paths import BRAIN_DIR
+RECORDS_FILE = os.path.join(BRAIN_DIR, "records.json")
 
 _LOCK = threading.Lock()
 
@@ -271,7 +273,7 @@ def soft_delete(record_id: str, reason: str = "", actor: str = "user:lain") -> O
                 break
     # tombstones.jsonl에 audit record 동시 append.
     try:
-        from tombstones import add_tombstone
+        from .tombstones import add_tombstone
         add_tombstone(
             path=f"record.{record_id}",
             snapshot=rec,
@@ -306,7 +308,7 @@ def restore_validity(record_id: str, reason: str = "", actor: str = "user:lain")
     if rec is None:
         return None
     try:
-        from tombstones import _ensure_dir, AUDIT_LOG_FILE
+        from .tombstones import _ensure_dir, AUDIT_LOG_FILE
         import json as _json
         from datetime import datetime as _dt
         _ensure_dir()
@@ -335,7 +337,7 @@ def revert_delete(record_id: str, reason: str = "", actor: str = "user:lain") ->
                 _save(recs)
                 break
     try:
-        from tombstones import revert_tombstone
+        from .tombstones import revert_tombstone
         revert_tombstone(path=f"record.{record_id}", actor=actor, reason=reason)
     except Exception as e:
         print(f"[entity_records] revert audit 실패: {e}", flush=True)
@@ -441,7 +443,7 @@ def vacuum_old(retention_days: int = RETENTION_DAYS,
             _save(keep)
             # audit_log에 vacuum entry
             try:
-                from tombstones import _ensure_dir, AUDIT_LOG_FILE
+                from .tombstones import _ensure_dir, AUDIT_LOG_FILE
                 import json as _json
                 _ensure_dir()
                 with open(AUDIT_LOG_FILE, "a") as f:

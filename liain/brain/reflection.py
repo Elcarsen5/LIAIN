@@ -28,8 +28,8 @@ import threading
 from datetime import datetime, timedelta
 from typing import Optional
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATE_FILE = os.path.join(BASE_DIR, "brain", "reflection_state.json")
+from .paths import BRAIN_DIR
+STATE_FILE = os.path.join(BRAIN_DIR, "reflection_state.json")
 
 # 임계: 가족 4명 규모니까 작게. 너무 자주 reflect하면 노이즈.
 REFLECT_THRESHOLD = 50
@@ -226,7 +226,7 @@ def _gather_inputs(days: int = 3, importance_min: int = 5) -> dict:
         print(f"[reflection] records load 실패: {e}", flush=True)
 
     # episodes (raw log) — 최근 3일
-    ep_dir = os.path.join(BASE_DIR, "brain", "episodes")
+    ep_dir = os.path.join(BRAIN_DIR, "episodes")
     if os.path.isdir(ep_dir):
         try:
             files = sorted(os.listdir(ep_dir), reverse=True)
