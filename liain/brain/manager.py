@@ -320,24 +320,39 @@ class Brain:
             # fact text에 "오늘"/"이번 주" 같은 상대 시간 표현이 그대로 박힌 경우 많음
             # → timestamp humanize prefix로 그 시점 명시 (LLM이 현재 시점으로 오해 방지)
             try:
-                from time_context import humanize_timestamp as _ht
+                from .temporal import humanize_timestamp as _ht
+                from . import temporal as _tr
                 from datetime import datetime as _dt_now
                 _now = _dt_now.now()
             except Exception:
-                _ht = None
+                _ht = _tr = None
                 _now = None
             for r in person_records[:30]:
                 # source ts 우선, 없으면 created_at
                 _src_list = r.get("sources") or []
                 _ts = (_src_list[0].get("ts") if _src_list else "") or r.get("created_at") or ""
-                _prefix = ""
-                if _ts and _ht and _now:
+                # event_date 있으면 그 이벤트의 '지금 기준' 상태를 코드가 계산해 준다.
+                # (LLM이 '3일 전 + 내일 = 언제'를 계산하다 틀리는 걸 원천 차단)
+                _ev = r.get("event_date")
+                if _ev and _tr and _now:
+                    _ongoing = _tr.is_ongoing(r.get("text") or "")
+                    # 지나간 일회성 예정일 + 중요도 낮음 → always-on에서 제외
+                    if (not _ongoing and r.get("importance", 5) < 7
+                            and _tr.is_stale_oneoff(_ev, now=_now)):
+                        continue
+                    try:
+                        _prefix = f"[{_tr.recall_phrase(_ev, now=_now, ongoing=_ongoing)}] "
+                    except Exception:
+                        _prefix = f"[{_ev}] "
+                elif _ts and _ht and _now:
                     try:
                         _prefix = f"[{_ht(_ts, now=_now)}] "
                     except Exception:
                         _prefix = f"[{_ts[:10]}] " if _ts else ""
                 elif _ts:
                     _prefix = f"[{_ts[:10]}] "
+                else:
+                    _prefix = ""
                 person_lines.append(f"- {_prefix}{r['text']}")
                 if r.get("id"):
                     _surfaced_ids.append(r["id"])

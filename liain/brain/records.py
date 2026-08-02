@@ -144,11 +144,16 @@ def add(
     sources: Optional[Iterable[dict]] = None,
     valid_from: Optional[str] = None,
     valid_to: Optional[str] = None,
+    event_date: Optional[str] = None,
     record_id: Optional[str] = None,
 ) -> dict:
     """새 record 추가. caller가 이미 동등 record 존재 여부를 체크했다고 가정.
 
     중복 검출(Mem0 NOOP)은 P2.2에서 add_or_update()에 흡수. 여기는 raw add.
+
+    event_date (YYYY-MM-DD): 이 record가 가리키는 실제 이벤트 날짜(절대). 캡처 시
+        temporal.resolve가 상대표현을 해석해 채운다. 회상 시 '내일/N일째' 같은
+        경과 문장을 코드가 계산하는 근거. 날짜성 이벤트가 아니면 None.
     """
     rec = {
         "id": record_id or _new_id(),
@@ -160,6 +165,7 @@ def add(
         "sources": list(sources or []),
         "valid_from": valid_from,
         "valid_to": valid_to,
+        "event_date": event_date,
         "deleted_at": None,
         "created_at": _now(),
         "updated_at": _now(),

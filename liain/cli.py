@@ -38,7 +38,12 @@ def _on_message(msg):
 
     extra = "\n\n## 이번 응답 형식\n자연스럽게 1~2문장으로 답해."
     if mem_ctx:
-        extra = f"\n\n## 기억\n{mem_ctx}" + extra
+        # 기억 시점 해석 규칙 — [시점]·(절대날짜)를 지금으로 오해하지 않게
+        try:
+            from liain.brain.temporal import ANCHOR_NOTE
+        except Exception:
+            ANCHOR_NOTE = ""
+        extra = f"\n\n## 기억\n{mem_ctx}{ANCHOR_NOTE}" + extra
     sysp = persona.system_prompt(extra)
 
     reply = llm.complete("chat", sysp, msg.text)

@@ -225,7 +225,10 @@ def apply_action(decision: dict, new_fact: dict) -> Optional[dict]:
     if action == "UPDATE":
         if not target_id:
             return None
-        er.update(target_id, text=new_fact["text"])
+        _upd = {"text": new_fact["text"]}
+        if new_fact.get("event_date"):
+            _upd["event_date"] = new_fact["event_date"]
+        er.update(target_id, **_upd)
         if src:
             er.add_source(target_id, src)
         maybe_auto_pin(target_id)
@@ -239,6 +242,7 @@ def apply_action(decision: dict, new_fact: dict) -> Optional[dict]:
             tags=new_fact.get("tags") or [],
             importance=int(new_fact.get("importance", 5)),
             sources=sources,
+            event_date=new_fact.get("event_date"),
         )
         # P2.4: Reflection importance accumulator + 임계 도달 시 background trigger
         _bump_reflection(int(new_fact.get("importance", 5)))
@@ -260,6 +264,7 @@ def apply_action(decision: dict, new_fact: dict) -> Optional[dict]:
             importance=int(new_fact.get("importance", 5)),
             sources=sources,
             valid_from=now_iso,
+            event_date=new_fact.get("event_date"),
         )
         # P2.4: Reflection importance accumulator (새 record 분만)
         _bump_reflection(int(new_fact.get("importance", 5)))
@@ -480,8 +485,24 @@ def process_message(
     """
     text = _sanitize_input(text)  # 사진 첨부 ￼·[사진:] 래퍼 제거 (false CONFLICT 차단)
     facts = extract_facts(text, speaker=speaker, entities_hint=entities_hint)
+    # 상대 시간 표현을 캡처 시점(ts) 기준 절대날짜로 못 박는다 (근본 교정).
+    # "내일 병원" → "내일(2026-07-22(화)) 병원" + event_date. 회상 때 LLM이
+    # 날짜 산수를 하지 않게 하는 핵심.
+    try:
+        from datetime import datetime as _dt
+        _anchor = _dt.fromisoformat(ts) if ts else _dt.now()
+    except Exception:
+        _anchor = None
     results = []
     for f in facts:
+        try:
+            from . import temporal as _tr
+            new_text, ev = _tr.resolve(f["text"], anchor=_anchor)
+            f["text"] = new_text
+            if ev:
+                f["event_date"] = ev
+        except Exception as _e:
+            print(f"[memory] 날짜 해석 실패: {_e}", flush=True)
         f["source"] = {"channel": channel, "ts": ts, "msg_id": msg_id}
         similar = find_similar(f["text"], entities=f.get("entities"))
         decision = judge_action(f, similar)

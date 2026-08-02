@@ -16,6 +16,10 @@ You give it a soul — a name, a voice, a way of remembering — through config.
   procedural / emotional / episodic) that consolidates nightly, promotes what
   matters, and notices repeating patterns. Your persona knows you got a new job
   last month, and that you always go quiet on Sunday nights.
+- **It remembers *when*.** "내일 병원" is pinned to an absolute date the moment
+  it's said, and the elapsed time is computed in code at recall — so a past
+  appointment never resurfaces as if it's today, and "day 3 of the trip" is
+  never miscounted as week 2. No date arithmetic is left to the model.
 - **It reflects.** From those memories it writes a diary, in its own voice —
   saved locally, or sent to you. This is how you *see* the memory working.
 - **Hardware-agnostic.** Runs anywhere Python runs — Raspberry Pi, Mac mini,
