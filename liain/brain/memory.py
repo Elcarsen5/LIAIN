@@ -368,7 +368,9 @@ def _try_llm_extract(text: str, speaker: Optional[str], entities_hint: Optional[
                    'fact JSON 배열만 (예: [{"text":"...","entities":["..."],"importance":5}]):')
     try:
         from liain import llm as _llm
-        response = _llm.complete("reasoning", _FACT_EXTRACT_SYSTEM, user_prompt, timeout=30)
+        # 추출은 응답 뒤 백그라운드로 도는 작업 → 타임아웃 넉넉히(로컬 무거운 모델 대비).
+        # 짧으면 timed out → stub 폴백(메시지 통째 1건)으로 추출 품질 저하.
+        response = _llm.complete("reasoning", _FACT_EXTRACT_SYSTEM, user_prompt, timeout=90)
     except Exception as e:
         print(f"[memory] fact 추출 LLM 실패: {e}", flush=True)
         return None

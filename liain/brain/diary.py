@@ -18,7 +18,7 @@ from .paths import DIARY_DIR
 
 
 def _gather(target_date: str) -> str:
-    """그날의 기억 재료 — 단기기억 + 에피소드."""
+    """그날의 기억 재료 — 단기기억 + 에피소드 + 오늘 쌓인 사실(records)."""
     parts = []
     try:
         from .manager import Brain
@@ -33,6 +33,22 @@ def _gather(target_date: str) -> str:
             parts.append(f"## 오늘의 에피소드\n{json.dumps(today_ep, ensure_ascii=False, indent=2)}")
     except Exception as e:
         print(f"[diary] 기억 수집 실패: {e}", flush=True)
+
+    # 대화에서 추출한 사실은 entity records(records.json)에 쌓인다. 단기기억만 보면
+    # 대화로 쌓인 오늘의 기억을 놓쳐 '기억 없음'으로 일기를 건너뛴다 → records도 포함.
+    try:
+        from . import records as _er
+        today_recs = [
+            r for r in _er.all_records()
+            if (r.get("created_at", "")[:10] == target_date
+                or (r.get("event_date") or "")[:10] == target_date)
+        ]
+        if today_recs:
+            parts.append("## 오늘의 기억 (대화에서)\n"
+                         + "\n".join(f"- {r.get('text','')}" for r in today_recs[:20]))
+    except Exception as e:
+        print(f"[diary] records 수집 실패: {e}", flush=True)
+
     return "\n\n".join(parts)
 
 
