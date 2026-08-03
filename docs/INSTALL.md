@@ -54,6 +54,25 @@ ollama pull qwen3:4b         # 라즈베리파이·저사양은 이걸로
 
 > 채널 없이 **로컬 기억·일기만** 쓸 수도 있습니다 (`liain diary`).
 
+### (선택) iMessage — **macOS 전용**
+애플 기기를 쓰면 별도 봇 없이 iMessage로 대화할 수 있습니다. 다른 OS에서는 자동
+비활성됩니다(Telegram으로 폴백).
+
+1. **Messages 앱**에 iMessage 계정 로그인.
+2. **권한 두 개** 부여 — 시스템 설정 > 개인정보 보호 및 보안:
+   - **전체 디스크 접근 권한**: `liain`을 실행하는 앱(터미널 등)에 부여 → 수신 DB(`chat.db`) 읽기
+   - **자동화**: 그 앱이 **Messages**를 제어하도록 허용 → 송신
+3. `contacts.yaml`의 각 사람에 `imessage` 핸들(전화번호 또는 이메일)을 넣습니다:
+   ```yaml
+   people:
+     owner:
+       role: dad
+       imessage: "+15551234567"     # 또는 you@icloud.com
+   ```
+   단톡을 쓰려면 `groups.family.imessage`에 chat identifier(`iMessage;+;chat…`)를 넣습니다.
+
+> iMessage와 Telegram이 둘 다 켜져 있으면 **iMessage 우선**, 실패 시 Telegram으로 폴백합니다.
+
 ---
 
 ## 2. 설치

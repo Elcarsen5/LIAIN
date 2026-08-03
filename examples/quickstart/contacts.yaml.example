@@ -1,11 +1,13 @@
 # 연락처 로스터 — config/contacts.yaml 로 복사.
 # entity = 내부 식별자(영문 권장). role=dad가 주 사용자(owner).
+# 채널 핸들은 쓰는 채널 것만 넣으면 됩니다 (telegram / imessage 중 하나 이상).
 people:
   owner:
     name: "Your Name"
     role: dad                # dad = 주 사용자(owner)
     display: "You"
     telegram: "000000000"    # 1:1 chat_id (== user_id)
+    imessage: "+15551234567" # (macOS만) 전화번호 또는 이메일. 안 쓰면 생략.
     aliases: ["Your Name", "You"]
   member1:
     name: "Family Member"
@@ -18,6 +20,7 @@ groups:
   family:
     name: "Family Group"
     telegram: "-100XXXXXXXXX"
+    # imessage: "iMessage;+;chat0000000000"   # (macOS만) 단톡 chat identifier
 
 locations:
   home: "City, Country"
