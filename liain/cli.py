@@ -52,14 +52,27 @@ def _on_message(msg):
     role = msg.role if msg.role != "unknown" else "dad"
     channels.route(role, reply)
 
-    # 대화 → 기억 추출·축적
+    # 대화 → 기억 축적. 두 경로 모두 태워야 함:
+    #  ① process_conversation: emotional + episode
+    #  ② memory.process_message: entity records(사실 추출) — get_unified_context가
+    #     읽는 곳. 이게 빠지면 대화해도 '아는 사실'이 안 쌓임(핵심 기능).
     if b:
         try:
             b.process_conversation(
                 [{"role": "user", "content": msg.text},
                  {"role": "assistant", "content": reply}])
         except Exception as e:
-            print(f"[liain] 기억 축적 실패: {e}", flush=True)
+            print(f"[liain] 감정·에피소드 축적 실패: {e}", flush=True)
+        try:
+            from liain.brain import memory
+            from datetime import datetime
+            memory.process_message(
+                msg.text, channel=(msg.channel or "chat"),
+                ts=datetime.now().isoformat(timespec="seconds"),
+                speaker=(msg.entity or None),
+                entities_hint=([msg.entity] if msg.entity else None))
+        except Exception as e:
+            print(f"[liain] 사실 추출 실패: {e}", flush=True)
 
 
 def cmd_info():
@@ -84,12 +97,19 @@ def cmd_run():
     cmd_info()
     chs = channels.available_channels()
     if not chs:
-        print("[liain] 사용 가능한 채널 없음 — .env에 TELEGRAM_BOT_TOKEN 설정 필요")
+        print("[liain] 사용 가능한 채널 없음 — Telegram 토큰(.env) 또는 iMessage(macOS) 필요")
         return
+    # poll을 지원하는 첫 채널로 수신 루프 (iMessage/Telegram 모두 지원).
     for ch in chs:
-        if ch.name == "telegram":
+        try:
+            print(f"[liain] {ch.name} 수신 폴링 시작", flush=True)
             ch.poll(_on_message)
             return
+        except NotImplementedError:
+            continue
+        except Exception as e:
+            print(f"[liain] {ch.name} 폴링 실패: {e}", flush=True)
+            continue
     print("[liain] 폴링 지원 채널 없음")
 
 

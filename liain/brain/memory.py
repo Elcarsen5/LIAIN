@@ -303,7 +303,7 @@ def apply_action(decision: dict, new_fact: dict) -> Optional[dict]:
 
 
 _FACT_EXTRACT_SYSTEM = """\
-너는 가족 비서 AI '리안'의 기억 시스템에서 fact extractor 역할을 맡았다.
+너는 AI 페르소나의 기억 시스템에서 fact extractor 역할을 맡았다.
 사용자 메시지에서 사람·관계·일정·선호 같은 의미 있는 사실(fact)을 추출해
 JSON 배열로만 응답한다.
 

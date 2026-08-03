@@ -55,6 +55,15 @@ MID_TERM_FILE = os.path.join(BRAIN_DIR, "mid_term.json")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+def _pname() -> str:
+    """페르소나 이름 (config). config-driven이므로 라벨에 하드코딩('리안') 금지."""
+    try:
+        from liain import config
+        return config.persona().get("name") or "페르소나"
+    except Exception:
+        return "페르소나"
+
+
 def _ask_subprocess(prompt, timeout=30):
     """LLM 호출 — liain.llm 라우팅(프로필: 구독CLI/로컬/API). 실패 시 None."""
     try:
@@ -229,7 +238,7 @@ class Brain:
         worldview = self.opinions.get("worldview", {})
         if worldview:
             top_wv = sorted(worldview.items(), key=lambda x: x[1].get("confidence", 0), reverse=True)[:5]
-            lines.append("\n## 리안의 세계관 (대화에 반영해)")
+            lines.append(f"\n## {_pname()}의 세계관 (대화에 반영해)")
             for topic, wv in top_wv:
                 lines.append(f"- {topic}: {wv.get('opinion', '')} (확신도 {wv.get('confidence', 0)}/10)")
 
@@ -237,7 +246,7 @@ class Brain:
         beliefs = self.opinions.get("beliefs", {})
         if beliefs:
             top_bl = sorted(beliefs.items(), key=lambda x: x[1].get("confidence", 0), reverse=True)[:5]
-            lines.append("\n## 리안의 신념 (가치관으로 대화에 자연스럽게 녹여)")
+            lines.append(f"\n## {_pname()}의 신념 (가치관으로 대화에 자연스럽게 녹여)")
             for topic, bl in top_bl:
                 lines.append(f"- {bl.get('belief', '')} (확신도 {bl.get('confidence', 0)}/10)")
 
@@ -366,7 +375,7 @@ class Brain:
                 people_sections.append(f"### {person}\n" + "\n".join(person_lines))
 
         if people_sections:
-            lines.append("## 리안이 알고 있는 사람들")
+            lines.append(f"## {_pname()}이 알고 있는 사람들")
             lines.extend(people_sections)
 
         # 2. 관계 분위기 (전체 공통)
@@ -404,7 +413,7 @@ class Brain:
         worldview = self.opinions.get("worldview", {})
         if worldview:
             top_wv = sorted(worldview.items(), key=lambda x: x[1].get("confidence", 0), reverse=True)[:5]
-            lines.append("\n## 리안의 세계관 (대화에 반영해)")
+            lines.append(f"\n## {_pname()}의 세계관 (대화에 반영해)")
             for topic, wv in top_wv:
                 lines.append(f"- {topic}: {wv.get('opinion', '')} (확신도 {wv.get('confidence', 0)}/10)")
 
@@ -412,7 +421,7 @@ class Brain:
         beliefs = self.opinions.get("beliefs", {})
         if beliefs:
             top_bl = sorted(beliefs.items(), key=lambda x: x[1].get("confidence", 0), reverse=True)[:5]
-            lines.append("\n## 리안의 신념 (가치관으로 대화에 자연스럽게 녹여)")
+            lines.append(f"\n## {_pname()}의 신념 (가치관으로 대화에 자연스럽게 녹여)")
             for topic, bl in top_bl:
                 lines.append(f"- {bl.get('belief', '')} (확신도 {bl.get('confidence', 0)}/10)")
 
@@ -627,7 +636,7 @@ class Brain:
 
         recent = messages[-6:]
         conv_text = "\n".join([
-            f"{'상대' if m['role'] == 'user' else '리안'}: {m['content']}"
+            f"{'상대' if m['role'] == 'user' else _pname()}: {m['content']}"
             for m in recent
         ])
 

@@ -20,10 +20,12 @@
 """
 from __future__ import annotations
 import os
+import re
 import sys
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 
 from liain.channels.base import Channel, IncomingMessage
 
@@ -54,7 +56,9 @@ def _send(target: str, text: str) -> bool:
     if not target or not text:
         return False
     msg = _osa_string_literal(text)
-    if target.startswith(("iMessage;", "any;", "chat")):
+    # 단톡 chat identifier: 'iMessage;+;…' / 'any;+;…' / 'chat<숫자>'.
+    # (그냥 startswith("chat")면 'chat@x.com' 같은 이메일 핸들을 오분류 → 정규식으로)
+    if re.match(r"^(iMessage;|any;|chat\d)", target):
         chat_id = target
         if chat_id.startswith("chat"):
             chat_id = f"any;+;{chat_id}"
@@ -124,19 +128,19 @@ def _new_messages(last_rowid: int):
     if not os.path.exists(_DB):
         return []
     try:
-        conn = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT m.rowid, m.attributedBody, m.text, h.id, c.chat_identifier, m.is_from_me
-            FROM message m
-            LEFT JOIN handle h ON m.handle_id = h.rowid
-            LEFT JOIN chat_message_join cmj ON m.rowid = cmj.message_id
-            LEFT JOIN chat c ON cmj.chat_id = c.rowid
-            WHERE m.rowid > ?
-            ORDER BY m.date ASC
-        """, (last_rowid,))
-        rows = cur.fetchall()
-        conn.close()
+        # ORDER BY rowid — watermark(last_rowid)와 처리 순서를 일치시킨다.
+        # (date 정렬이면 지연 도착 메시지가 낮은 rowid로 와서 watermark가 뒤로
+        #  밀려 재처리=중복 발송될 수 있음)
+        with closing(sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)) as conn:
+            rows = conn.execute("""
+                SELECT m.rowid, m.attributedBody, m.text, h.id, c.chat_identifier, m.is_from_me
+                FROM message m
+                LEFT JOIN handle h ON m.handle_id = h.rowid
+                LEFT JOIN chat_message_join cmj ON m.rowid = cmj.message_id
+                LEFT JOIN chat c ON cmj.chat_id = c.rowid
+                WHERE m.rowid > ?
+                ORDER BY m.rowid ASC
+            """, (last_rowid,)).fetchall()
         out = []
         for rowid, body, text_col, sender, chat_id, is_from_me in rows:
             text = (_extract_text(body) or (text_col or "").strip()).replace("\x00", "")
@@ -166,9 +170,8 @@ def _max_rowid() -> int:
     if not os.path.exists(_DB):
         return 0
     try:
-        conn = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)
-        r = conn.execute("SELECT MAX(rowid) FROM message").fetchone()
-        conn.close()
+        with closing(sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)) as conn:
+            r = conn.execute("SELECT MAX(rowid) FROM message").fetchone()
         return int(r[0] or 0)
     except Exception:
         return 0

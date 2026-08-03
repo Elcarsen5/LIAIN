@@ -117,15 +117,11 @@ def recent_reflections(limit: int = 10) -> list[dict]:
 
 
 def _call_sonnet(system: str, user_content: str, max_tokens: int = 1200) -> str:
+    # llm.complete(role, system, prompt, **opts) — prompt는 positional.
+    # (예전: system=/user_prompt= 키워드로 불러 TypeError → 회고 전멸)
     from liain import llm as _llm
-    return _llm.complete("reasoning", system=system,
-        user_prompt=user_content,
-        model_alias="sonnet",
-        api_model="claude-sonnet-4-20250514",
-        max_tokens=max_tokens,
-        timeout=180,
-        allow_api_fallback=False,  # background reflection — CLI 실패 시 skip
-    )
+    return _llm.complete("reasoning", system, user_content,
+                         max_tokens=max_tokens, timeout=180) or ""
 
 
 def _fix_truncated_json(text: str):
@@ -157,7 +153,7 @@ def _fix_truncated_json(text: str):
 
 
 _REFLECT_SYSTEM = """\
-너는 가족 비서 AI '리안'의 reflection engine이다.
+너는 AI 페르소나의 reflection engine이다.
 최근 누적된 fact / 에피소드를 보고, raw 사실을 넘어선 high-level insight를 합성하라.
 
 좋은 insight 예:
@@ -322,14 +318,19 @@ def trigger_reflection(reason: str = "manual",
     except Exception as e:
         print(f"[reflection] LLM 호출 실패: {e}", flush=True)
 
-    # form_opinions로 worldview/beliefs 진화 연쇄 (LLM 1회 추가)
+    # form_opinions(worldview/beliefs 진화)는 옵션 확장 — 프레임워크 기본엔 미포함.
+    # 있으면 연쇄, 없으면 조용히 스킵(매번 에러 로그 안 냄).
     opinions_changes = 0
     if run_form_opinions:
         try:
-            from brain.thinker import form_opinions
-            opinions_changes = form_opinions() or 0
-        except Exception as e:
-            print(f"[reflection] form_opinions 실패: {e}", flush=True)
+            from liain.brain.thinker import form_opinions  # 선택 모듈
+        except Exception:
+            form_opinions = None
+        if form_opinions:
+            try:
+                opinions_changes = form_opinions() or 0
+            except Exception as e:
+                print(f"[reflection] form_opinions 실패: {e}", flush=True)
 
     finished = _now()
     with _LOCK:

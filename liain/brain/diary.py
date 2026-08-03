@@ -26,11 +26,17 @@ def _gather(target_date: str) -> str:
         st = b.get_short_term_context()
         if st:
             parts.append(f"## 오늘 있었던 일 (단기기억)\n{st}")
-        eps = getattr(b, "episodes", {}) or {}
-        today_ep = eps.get(target_date)
-        if today_ep:
+        # Brain엔 episodes 속성이 없다 — 에피소드는 파일에서 _get_recent_episodes로 읽는다.
+        # (예전: getattr(b,"episodes",{}) → 항상 {} → 에피소드 영영 누락)
+        try:
+            eps = b._get_recent_episodes(days=1) or []
+        except Exception:
+            eps = []
+        today_eps = [e for e in eps if str(e.get("date", "")).startswith(target_date)] or eps[:1]
+        if today_eps:
             import json
-            parts.append(f"## 오늘의 에피소드\n{json.dumps(today_ep, ensure_ascii=False, indent=2)}")
+            parts.append("## 오늘의 에피소드\n"
+                         + json.dumps(today_eps, ensure_ascii=False, indent=2))
     except Exception as e:
         print(f"[diary] 기억 수집 실패: {e}", flush=True)
 
