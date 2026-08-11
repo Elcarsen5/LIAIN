@@ -38,6 +38,21 @@ def _short(t: str) -> str:
     return s[:40] + ("…" if len(s) > 40 else "")
 
 
+def send_to_self(text: str) -> bool:
+    """에이전트 자기 계정으로 발송 (2단 파이프라인 THINK 결과 보존 로그).
+
+    self_handle(config)이 설정된 첫 활성 채널로 자기발송. 미설정이면 어떤 채널도 안 걸려 False
+    (생각 보존만 생략, 대화는 정상). 정화 우회는 각 채널 send_to_self가 raw=True로 처리.
+    """
+    for ch in (available_channels() or []):
+        try:
+            if ch.send_to_self(text):
+                return True
+        except Exception as e:
+            print(f"[liain.messenger] self-send {ch.name} 예외: {e}", flush=True)
+    return False
+
+
 def route(role: str, text: str) -> bool:
     order = available_channels() or [_TELEGRAM]
     for i, ch in enumerate(order):

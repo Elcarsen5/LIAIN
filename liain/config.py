@@ -112,5 +112,18 @@ def persona() -> dict:
     return _persona_cfg().get("persona") or {}
 
 
+def self_handles() -> dict:
+    """에이전트 자기 계정 핸들 (채널별) — 2단 파이프라인의 생각(THINK) 보존 발송용.
+
+    persona.yaml: `persona.self_handles: {imessage: "agent@…", telegram: "<chat_id>"}`.
+    미설정이면 빈 dict → 자기발송은 graceful no-op(생각 보존만 생략, 대화는 정상).
+    """
+    return _persona_cfg().get("persona", {}).get("self_handles") or {}
+
+
+def self_handle(channel: str) -> str:
+    return str(self_handles().get(channel) or "")
+
+
 def family_in_prompt() -> list:
     return _persona_cfg().get("family_in_prompt") or []

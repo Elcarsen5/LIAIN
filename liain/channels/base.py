@@ -49,9 +49,29 @@ class Channel(ABC):
         ...
 
     @abstractmethod
-    def send_target(self, target: str, text: str) -> bool:
-        """채널 native target(handle/chat_id)으로 직접 송신."""
+    def send_target(self, target: str, text: str, raw: bool = False) -> bool:
+        """채널 native target(handle/chat_id)으로 직접 송신.
+
+        raw=True: 발신 정화(sanitize_outgoing) 우회 — 에이전트 자기발송(생각 로그) 전용.
+                 상대에게 안 가는 내부 기록이라 원본 보존이 필요. 외부 상대엔 절대 쓰지 말 것.
+        """
         ...
+
+    def send_to_self(self, text: str) -> bool:
+        """에이전트 자기 계정으로 발송 (2단 파이프라인 THINK 결과 보존 로그).
+
+        목적지 = config.self_handle(채널명). 미설정이면 no-op(생각 보존만 생략, 대화 정상).
+        raw=True로 정화 우회(생각 원본 보존). 자기발송은 is_from_me라 폴러가 응답 안 함(루프 없음).
+        """
+        from liain import config
+        target = config.self_handle(self.name)
+        if not target:
+            return False
+        try:
+            return self.send_target(target, text, raw=True)
+        except Exception as e:
+            print(f"[liain.{self.name}] 자기발송 오류: {e}", flush=True)
+            return False
 
     def poll(self, callback) -> None:
         """수신 폴링 루프 시작 (지원 채널만 override). 기본 no-op."""

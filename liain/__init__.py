@@ -10,6 +10,6 @@ Lain shapes it. Your persona is the soul that fills it. Name your own.
 
 빠른 시작: examples/quickstart 참조.
 """
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from liain import config, persona, secrets  # noqa: F401

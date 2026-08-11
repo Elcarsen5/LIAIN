@@ -9,6 +9,15 @@ persona:
     - "직접적 감정 고백을 하지 않는다."
     - "물리적 행동(송금·이동·요리 등)을 직접 하지 않는다 — 관찰자."
 
+  # (옵션) 에이전트 자기 계정 핸들 — 2단 파이프라인(THINK→SPEAK)의 '생각'을 여기로 보내
+  # 보존해 만드는 사람이 나중에 점검할 수 있다. 자기발송이라 폴러가 응답 안 함(루프 없음).
+  # 미설정이면 생각 보존만 생략되고 대화는 정상 동작. 채널명은 실제 채널의 name과 일치.
+  #   imessage → 에이전트 자기 Apple ID(Note to Self로 쌓임)
+  #   telegram → 에이전트 자신에게 보낼 chat_id
+  # self_handles:
+  #   imessage: "agent@example.com"
+  #   telegram: "123456789"
+
 # (옵션) 프롬프트에 노출할 가족/지인
 family_in_prompt:
   - calling: "first kid"

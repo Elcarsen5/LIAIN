@@ -85,8 +85,22 @@ def _load(filename):
 def _save(filename, data):
     path = os.path.join(BRAIN_DIR, filename)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:   # 한글 JSON — Windows(cp949) 크래시 방지
         json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+
+
+def _emotion_fresh(emotion_data, max_days=5):
+    """사람별 감정이 아직 '현재'로 쓸 만큼 최근인지 — 오래된 감정을 현재로 주입하던 문제 방지.
+
+    updated 없는 레거시 항목은 보존(기존 동작). max_days 초과면 미주입.
+    """
+    up = (emotion_data or {}).get("updated")
+    if not up:
+        return True
+    try:
+        return (datetime.now() - datetime.fromisoformat(up)).days <= max_days
+    except Exception:
+        return True
 
 
 # ─── Importance 채점 시스템 (Park et al. 2023) ─────────────
@@ -200,7 +214,7 @@ class Brain:
         if emotion:
             lines.append(f"- 현재 기분: {emotion}")
         emotion_data = self.emotional.get("current", {}).get(person, {})
-        if emotion_data.get("mood") and emotion_data["mood"] != "보통":
+        if emotion_data.get("mood") and emotion_data["mood"] != "보통" and _emotion_fresh(emotion_data):
             lines.append(f"- 감정 상태: {emotion_data['mood']} (에너지: {emotion_data.get('energy', '?')})")
 
         # 관계 상태
@@ -266,20 +280,29 @@ class Brain:
 
         return "\n".join(lines) if lines else ""
 
-    def get_unified_context(self, include_episodes=True):
+    def get_unified_context(self, include_episodes=True, speaking_with=None):
         """단일 인격 통합 컨텍스트 — person partition 없음.
 
         모든 사람(core/semantic/emotional의 person key)을 한 덩어리로 노출.
-        리안의 행동 규칙·세계관·신념·에피소드는 공통으로 1회 노출.
+        페르소나의 행동 규칙·세계관·신념·에피소드는 공통으로 1회 노출.
 
         호출자(1:1, 단톡)는 이 위에 '지금 누구와 어디서 대화 중인지'(페르소나)만
         얹는다. 메모리는 동일 — 단톡에서 안 사실은 1:1에서도, 1:1에서 안 사실은
         단톡에서도 같이 알고 있다.
+
+        speaking_with: 지금 대화 중인 상대 엔티티(예: 'owner', 'friend_x'). 넘기면
+            **confidential 태그 record는 그 상대의 것일 때만 노출**(교차대화 비밀 유출
+            차단) + person 태그된 단기기억도 그 상대와 대화할 때만. None이면 안전하게 숨김.
         """
         lines = []
 
-        # 0. Short-term — 오늘 한 일
-        st_context = self.get_short_term_context()
+        # 0-a. 페르소나 자신의 오늘 기분 (어제에서 이월·감쇠) — 전 대화 톤을 물들임
+        _self_mood = self.self_mood_line()
+        if _self_mood:
+            lines.append(_self_mood)
+
+        # 0. Short-term — 오늘 한 일 (person 태그 항목은 speaking_with와 대화 중일 때만)
+        st_context = self.get_short_term_context(speaking_with=speaking_with)
         if st_context:
             lines.append(st_context)
 
@@ -303,6 +326,11 @@ class Brain:
         for r in _records:
             if r.get("importance", 5) < 3:
                 continue
+            # 비밀(confidential) record는 '그 상대와 대화 중'일 때만 노출 — 교차대화 유출 차단.
+            # speaking_with가 record의 entities에 없으면 숨김. None(그룹 등)이면 안전하게 숨김.
+            if "confidential" in (r.get("tags") or []):
+                if not speaking_with or speaking_with not in (r.get("entities") or []):
+                    continue
             for ent in r.get("entities") or []:
                 by_entity.setdefault(ent, []).append(r)
 
@@ -367,7 +395,7 @@ class Brain:
                     _surfaced_ids.append(r["id"])
             # emotional.current 슬롯 (P0.4 메모대로 single source)
             emo = self.emotional.get("current", {}).get(person, {})
-            if emo.get("mood") and emo["mood"] != "보통":
+            if emo.get("mood") and emo["mood"] != "보통" and _emotion_fresh(emo):
                 person_lines.append(f"- 현재 감정: {emo['mood']} (에너지: {emo.get('energy', '?')})")
             if emo.get("note"):
                 person_lines.append(f"- 감정 메모: {emo['note']}")
@@ -554,6 +582,125 @@ class Brain:
         _save("emotional.json", self.emotional)
         print(f"[Brain] emotion 업데이트: {person} = {mood} ({note})", flush=True)
 
+    # ─── 페르소나 자신의 기분 (사람별과 별개인 전역 상태, 날짜 간 이월·감쇠) ───
+    # 사람은 어제 기분이 오늘까지 이어진다. 사람별 감정(update_emotion)은 '상대에 대한
+    # 즉각 반응'이고, 이건 페르소나 자체의 지속되는 mood. reflect가 밤에 갱신, 조회 시 감쇠.
+    def get_self_mood(self):
+        """페르소나 자신의 최근 기분 상태(raw dict). 없으면 None."""
+        return self.emotional.get("self")
+
+    def set_self_mood(self, valence, label, note=""):
+        """자기성찰이 정한 기분 저장. valence -1(가라앉음)~+1(좋음)."""
+        try:
+            v = max(-1.0, min(1.0, float(valence)))
+        except Exception:
+            v = 0.0
+        now = datetime.now()
+        self.emotional["self"] = {
+            "valence": round(v, 2),
+            "label": (label or "").strip()[:20],
+            "note": (note or "").strip()[:200],
+            "date": now.date().isoformat(),          # 이 기분이 '어느 날' 것인지
+            "updated": now.isoformat(timespec="seconds"),
+        }
+        _save("emotional.json", self.emotional)
+        print(f"[Brain] self-mood: {label} (valence {v:+.2f}) — {note[:40]}", flush=True)
+
+    def self_mood_line(self):
+        """프롬프트 주입용 — 저장된 기분을 경과시간만큼 baseline(평온)으로 감쇠 후 한 블록.
+
+        어제 기분이 오늘 아침엔 강하게, 저녁엔 옅게 남는 회복 곡선. 거의 평온이면 미주입.
+        """
+        m = self.emotional.get("self")
+        if not m:
+            return ""
+        try:
+            v = float(m.get("valence", 0))
+            updated = datetime.fromisoformat(m.get("updated"))
+            days = max(0.0, (datetime.now() - updated).total_seconds() / 86400.0)
+        except Exception:
+            return ""
+        eff = v * math.exp(-0.35 * days)             # 하루 ~70%, 이틀 ~49% (회복)
+        if abs(eff) < 0.15:
+            return ""                                # 거의 평온 — 굳이 안 물들임
+        label = m.get("label", "")
+        note = m.get("note", "")
+        today = datetime.now().date().isoformat()
+        recency = "" if m.get("date") == today else " (어제 일이 아직 좀 남아있어)"
+        return ("## 지금 너의 기분 (너 자신의 상태 — 사람 상관없이)\n"
+                f"오늘 네 기분은 '{label}' 쪽이야{recency}. {note}\n"
+                "이 기분이 말투에 자연스럽게 배어나게 둬 — 딱 지금 상태만큼만(과장·억지 긍정 없이). "
+                "상대가 기분을 물으면 솔직히 말해도 돼.")
+
+    def reflect_self_mood(self):
+        """밤 자기성찰 — 그날을 돌아보고 자기 기분(valence+label+note)을 정한다.
+
+        어제 기분을 함께 제시해 연속성(어제→오늘)을 반영. 저장만 하고, 조회 시 감쇠로 회복.
+        LLM(reasoning role). 실패해도 어제 기분 유지(감쇠는 계속). consolidate 시 호출 권장.
+        """
+        try:
+            from liain import llm
+        except Exception:
+            return None
+        today = date.today().isoformat()
+        prev = self.get_self_mood()
+        prev_txt = (f"{prev.get('label')} — {prev.get('note')} (valence {prev.get('valence')})"
+                    if prev else "(첫 기록, 평온에서 시작)")
+        hist = self.emotional.get("history", []) or []
+        today_evts = [h for h in hist if str(h.get("date", ""))[:10] == today]
+        evt_txt = "\n".join(f"- [{h.get('person')}] {h.get('mood')}: {h.get('note', '')}"
+                            for h in today_evts[-12:]) or "(오늘 특별히 남은 감정 기록은 없음)"
+        ep_txt = ""
+        try:
+            evs = []
+            for ep in self._get_recent_episodes(days=1):
+                for e in (ep.get("events") or [])[:8]:
+                    if e.get("event"):
+                        evs.append(f"- {e['event']}")
+            ep_txt = "\n".join(evs[-10:])
+        except Exception:
+            pass
+        prompt = (
+            "너의 오늘 하루를 조용히 돌아봐. 지금 네 '기분'을 정직하게 정하는 거야.\n\n"
+            f"어제 네 기분: {prev_txt}\n\n"
+            f"오늘 감정적으로 남은 일들:\n{evt_txt}\n"
+            + (f"\n오늘 있었던 일:\n{ep_txt}\n" if ep_txt else "")
+            + "\n어제 기분이 오늘까지 자연스럽게 남아있으면 반영하고(사람은 어제 안 좋으면 오늘도 좀"
+            " 그렇잖아), 오늘 일로 풀렸거나 더 가라앉았으면 그것도. 억지 긍정 말고 솔직히.\n"
+            "딱 아래 JSON 한 줄로만 답해(다른 말 없이):\n"
+            '{"label":"기분 한 단어","valence":숫자(-1.0 아주 가라앉음 ~ +1.0 아주 좋음),'
+            '"note":"왜 그런지 한 문장"}'
+        )
+        try:
+            from liain import persona
+            sysp = persona.system_prompt()
+        except Exception:
+            sysp = ""
+        try:
+            raw = llm.complete("reasoning", sysp, prompt)
+        except Exception as e:
+            print(f"[self-mood] LLM 오류: {e}", flush=True)
+            return None
+        if not raw:
+            print("[self-mood] 성찰 응답 없음 — 어제 기분 유지(감쇠만)", flush=True)
+            return None
+        import re as _re
+        mm = _re.search(r"\{.*\}", raw, _re.S)
+        if not mm:
+            print(f"[self-mood] JSON 못 찾음: {raw[:80]}", flush=True)
+            return None
+        try:
+            data = json.loads(mm.group(0))
+        except Exception:
+            print(f"[self-mood] JSON 파싱 실패: {raw[:80]}", flush=True)
+            return None
+        label = str(data.get("label", "")).strip()
+        if not label:
+            print(f"[self-mood] label 비어있음: {raw[:80]}", flush=True)
+            return None
+        self.set_self_mood(data.get("valence", 0), label, str(data.get("note", "")).strip())
+        return self.get_self_mood()
+
     def add_procedural_rule(self, rule):
         """행동 규칙 추가."""
         rules = self.procedural.get("conversation_rules", [])
@@ -672,8 +819,13 @@ class Brain:
 
     # ─── Short-term Memory (오늘 한 일) ──────────────────
 
-    def record_short_term(self, content, action_type="general", importance=None):
-        """오늘의 행동/대화 기록. 매 대화 후 호출."""
+    def record_short_term(self, content, action_type="general", importance=None, person=None):
+        """오늘의 행동/대화 기록. 매 대화 후 호출.
+
+        person: 이 항목이 특정 상대(엔티티)와의 대화면 그 엔티티 태그. get_short_term_context가
+            speaking_with로 필터해 **교차대화 노출을 막는다**(그 상대와 대화할 때만 이 항목 노출).
+            None이면 공통(누구와의 대화에서도 노출).
+        """
         st = self._load_short_term()
         today = date.today().isoformat()
         if st.get("date") != today:
@@ -684,12 +836,15 @@ class Brain:
             importance = _score_importance(content)
             _log_scoring(content, importance, "short_term")
 
-        st["items"].append({
+        _item = {
             "time": datetime.now().strftime("%H:%M"),
             "content": content,
             "type": action_type,
             "importance": importance,
-        })
+        }
+        if person:
+            _item["person"] = person
+        st["items"].append(_item)
 
         # Flashbulb: importance 8+ → 바로 Long-term
         if importance >= 8:
@@ -774,8 +929,11 @@ class Brain:
         except Exception as e:
             print(f"[Brain] chunk 실패: {e}", flush=True)
 
-    def get_short_term_context(self):
-        """시스템 프롬프트에 주입할 오늘 하루 컨텍스트. chunk 우선, 미처리분은 raw."""
+    def get_short_term_context(self, speaking_with=None):
+        """시스템 프롬프트에 주입할 오늘 하루 컨텍스트. chunk 우선, 미처리분은 raw.
+
+        speaking_with: person 태그된 항목은 그 상대와 대화 중일 때만 노출(교차대화 유출 차단).
+        """
         st = self._load_short_term()
         if st.get("date") != date.today().isoformat():
             return ""
@@ -793,8 +951,9 @@ class Brain:
         for c in chunks:
             lines.append(f"[{c['period']}] {c['summary']}")
 
-        # 아직 chunk 안 된 최근 항목
-        recent = items[last_chunk_idx:]
+        # 아직 chunk 안 된 최근 항목 (person 태그된 것은 speaking_with와 대화 중일 때만)
+        recent = [it for it in items[last_chunk_idx:]
+                  if not it.get("person") or it.get("person") == speaking_with]
         if recent:
             if chunks:
                 lines.append(f"\n[{recent[0]['time']}~지금]")

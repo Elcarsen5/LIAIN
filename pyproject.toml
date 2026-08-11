@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "liain"
-version = "0.1.0"
+dynamic = ["version"]              # 단일 소스: liain/__init__.py __version__ 에서 읽음
 description = "Liain — a config-driven body for AI personas. Bring your own soul."
 readme = "README.md"
 license = { text = "MIT" }
@@ -39,6 +39,9 @@ Documentation = "https://github.com/Elcarsen5/LIAIN/blob/main/docs/INSTALL.md"
 
 [project.scripts]
 liain = "liain.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "liain.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["."]

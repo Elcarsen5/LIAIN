@@ -51,9 +51,17 @@ def _osa_string_literal(text: str) -> str:
     return " & linefeed & ".join(f'"{_osa_escape(l)}"' for l in text.split("\n"))
 
 
-def _send(target: str, text: str) -> bool:
-    """target: 1:1 handle(전화/이메일) 또는 단톡 chat id('iMessage;+;chat…')."""
-    if not target or not text:
+def _send(target: str, text: str, raw: bool = False) -> bool:
+    """target: 1:1 handle(전화/이메일) 또는 단톡 chat id('iMessage;+;chat…').
+
+    raw=True: 정화 우회 — 자기발송(생각 로그) 전용(원본 보존). 외부 상대엔 쓰지 말 것.
+    """
+    if not raw:
+        from liain.guard import sanitize_outgoing
+        text, _stripped = sanitize_outgoing(text)   # <생각>·혼잣말 최종 제거(모든 발신 경로 공통 chokepoint)
+        if _stripped:
+            print("[liain.imessage] <생각>/혼잣말 발신 정화됨(생성단 정리 누락 방어)", flush=True)
+    if not target or not text or not text.strip():
         return False
     msg = _osa_string_literal(text)
     # 단톡 chat identifier: 'iMessage;+;…' / 'any;+;…' / 'chat<숫자>'.
@@ -193,8 +201,8 @@ class IMessageChannel(Channel):
         p = config.person_by_role(role)
         return config._primary_imessage(p) if p else ""
 
-    def send_target(self, target: str, text: str) -> bool:
-        return _send(target, text)
+    def send_target(self, target: str, text: str, raw: bool = False) -> bool:
+        return _send(target, text, raw=raw)
 
     def send_role(self, role: str, text: str) -> bool:
         return _send(self._handle_for_role(role), text)

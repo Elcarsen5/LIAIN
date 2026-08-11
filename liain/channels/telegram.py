@@ -31,8 +31,14 @@ class TelegramChannel(Channel):
             return str((config.groups().get("family") or {}).get("telegram") or "")
         return str(config.person_by_role(role).get("telegram") or "")
 
-    def send_target(self, target: str, text: str) -> bool:
-        if not target:
+    def send_target(self, target: str, text: str, raw: bool = False) -> bool:
+        # raw=True: 정화 우회 — 자기발송(생각 로그) 전용(원본 보존). 외부 상대엔 쓰지 말 것.
+        if not raw:
+            from liain.guard import sanitize_outgoing
+            text, _stripped = sanitize_outgoing(text)   # <생각>·혼잣말 최종 제거(발신 공통 chokepoint)
+            if _stripped:
+                print("[liain.telegram] <생각>/혼잣말 발신 정화됨(생성단 정리 누락 방어)", flush=True)
+        if not target or not (text or "").strip():
             return False
         try:
             r = requests.post(_api("sendMessage"),
