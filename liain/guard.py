@@ -25,16 +25,9 @@ _MONO_LABEL_RE = (r"^[\(\[（【]\s*(?:속으로|속마음|마음속|내심|혼�
 _THINK_OPEN = re.compile(r"<\s*생각\s*>")
 _THINK_CLOSE = re.compile(r"<\s*/\s*생각\s*>")
 
-# _on_message가 persona 프롬프트에 붙일 응답 형식 지시(사고 채널 부여).
-OUTPUT_FORMAT_NOTE = (
-    "\n\n## 이번 응답 형식 (엄수)\n"
-    "상황 해석·어떻게 답할지 생각이 들면 **반드시 `<생각>…</생각>` 안에** 써 — 그 안은 상대한테"
-    " 안 가고 **너의 기억·일기에 남아**(온전히 네 것)."
-    " **태그 밖에는 상대에게 실제로 보낼 말만** 자연스럽게 1~2문장으로 써."
-    " '상대가 …한 거네, 짧게만 반응해야지'처럼 상대 말투·네 응답 전략을 3인칭으로 묘사하는 문장은"
-    " 전부 `<생각>` 안으로 — 태그 밖엔 상대에게 직접 건네는 2인칭 말만."
-    " 예) `<생각>좀 새침하네. 가볍게 넘기자.</생각>왜 이렇게 새침해 ㅋㅋ`"
-)
+# (구 OUTPUT_FORMAT_NOTE — 단일 프롬프트 <생각> CoT 응답형식 지시 — 는 2단 파이프라인
+#  generate.think_then_speak 도입으로 데드코드가 되어 제거됨. parse_think_speak/sanitize_outgoing
+#  은 transport 최종 방어(잔여 <생각>·혼잣말 제거)로 유지.)
 
 
 def _extract_labeled(text):
@@ -148,4 +141,4 @@ def record_self_monologue(thoughts, brain=None, who=""):
     print(f"[guard] 혼잣말→자기기록 {who} {len(thoughts)}건", flush=True)
 
 
-__all__ = ["parse_think_speak", "sanitize_outgoing", "record_self_monologue", "OUTPUT_FORMAT_NOTE"]
+__all__ = ["parse_think_speak", "sanitize_outgoing", "record_self_monologue"]

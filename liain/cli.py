@@ -50,7 +50,7 @@ def _on_message(msg):
         except Exception as e:
             print(f"[liain] 기억 컨텍스트 실패: {e}", flush=True)
 
-    # 기억 컨텍스트만 시스템에 — 2단 파이프라인은 <생각> CoT 형식(OUTPUT_FORMAT_NOTE)이 불필요.
+    # 기억 컨텍스트만 시스템에 — 2단 파이프라인은 <생각> CoT 응답형식 지시가 불필요(제거됨).
     mem_extra = ""
     if mem_ctx:
         # 기억 시점 해석 규칙 — [시점]·(절대날짜)를 지금으로 오해하지 않게
