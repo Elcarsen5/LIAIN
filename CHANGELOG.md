@@ -8,6 +8,21 @@ While on `0.x`, minor versions may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+- **Query-time memory retrieval** (`liain/brain/retrieval.py`) — a BM25/FTS5 layer
+  (`SqliteFts5Retriever` + `get_default_retriever` + `ingest_all` + Korean natural-language
+  time-anchor parsing) that mirrors records/episodes/short-term into a SQLite FTS index and
+  retrieves by relevance. Mirrors the reference persona's redesigned retrieval stack, adapted
+  to the framework's record schema and `LIAIN_DATA_DIR` layout.
+- **Upgraded `WorkingMemoryAssembler.retrieve_for_query`** — hybrid fusion (BM25 ⊕ dense SBERT
+  via RRF, graceful BM25-only fallback when no embeddings), base-level activation for
+  "person + emotion" queries gated by relevance (no spillover on unrelated turns), and
+  subject labels on recalled lines to prevent misattribution. Persona/contact specifics are
+  config-driven (`config.alias_to_entity` / `people` / `persona`), not hardcoded.
+- **Memory-retrieval eval harness** (`liain/brain/eval.py`) — recall@K + negative-spillover
+  measurement against a `golden_set.json`, plus a runnable abstract example under
+  `examples/eval/` (fixtures + golden set; no real personal data).
+
 Planned — porting remaining hardening/features proven in the reference persona (Lian):
 
 ### Added (planned)

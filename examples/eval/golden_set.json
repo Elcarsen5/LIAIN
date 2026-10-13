@@ -1,0 +1,27 @@
+{
+  "_note": "추상 예시 골든셋 — brain/records.json 픽스처 대비. 리안 가족 데이터 없음. 임베더 없이도 도는 결정적 케이스(BM25 어휘 recall + base-level 감정보강 + 관련도 게이트). 임베더 설치 시 dense가 패러프레이즈 recall을 추가로 올린다.",
+  "cases": [
+    {
+      "id": "recall-coffee",
+      "query": "사장님 아이스 아메리카노 좋아해?",
+      "expect_any": ["아메리카노"],
+      "kind": "recall",
+      "note": "BM25 어휘 recall — 공유 토큰(아이스·좋아해)으로 커피 fact 인출"
+    },
+    {
+      "id": "base-emotion-owner",
+      "query": "사장님 요즘 어때? 좀 힘들어 보이던데.",
+      "speaking_with": "owner",
+      "expect_any": ["번아웃"],
+      "kind": "recall",
+      "note": "base-level 감정보강 — 별칭(사장님→owner)+감정질의 게이트 통과 → struggle 레코드 surfacing"
+    },
+    {
+      "id": "neg-lunch-spillover",
+      "query": "사장님 김밥을 먹었대?",
+      "reject_any": ["번아웃"],
+      "kind": "negative",
+      "note": "관련도 게이트 — 감정질의 아니므로 struggle 테마가 새면 안 됨(spillover 억제)"
+    }
+  ]
+}

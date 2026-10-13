@@ -1,0 +1,17 @@
+# 평가용 예시 연락처 — 추상 로스터(실제 인물 아님).
+# working.py의 별칭→엔티티 해석(_wm_alias_to_entity)과 표시명(_wm_entity_display)을
+# 검증하기 위한 최소 데이터. "사장님"/"멤버"는 base-level 감정보강 케이스의 별칭 트리거.
+people:
+  owner:
+    name: "Alex"
+    role: dad                 # dad = 주 사용자(owner)
+    display: "사장님"
+    aliases: ["Alex", "사장님", "owner"]
+  member1:
+    name: "Sam"
+    role: son1
+    display: "멤버"
+    aliases: ["Sam", "멤버", "member"]
+
+locations:
+  home: "City, Country"
